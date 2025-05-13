@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import boto3
 import jwt
+from jwt.algorithms import RSAAlgorithm
 import requests
 
 app = Flask(__name__)
