@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Login</title>
-  <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.2.0/dist/amazon-cognito-identity.min.js"></script>
+  <title>Cognito Login</title>
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1487.0.min.js"></script>
 </head>
 <body>
   <h2>Login</h2>
@@ -29,46 +29,42 @@
     <button type="submit">Login</button>
   </form>
 
-  <div id="message"></div>
+  <div id="message" style="margin-top:20px;color:red;"></div>
 
   <script>
-    const poolData = {
-      UserPoolId: 'ap-southeast-2_hczmFu5Rv', // Replace with your Cognito User Pool ID
-      ClientId: '6v98tbc09aqfvh52fml3usas3c'     // Replace with your App Client ID
-    };
+    AWS.config.region = 'ap-southeast-2'; // e.g. Sydney
+    const cognitoClientId = 'YOUR_APP_CLIENT_ID'; // Replace this
+    const userPoolId = 'ap-southeast-2_XXXXXXX'; // Replace this
 
-    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
-
-    document.getElementById("loginForm").addEventListener("submit", function(e) {
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
 
       const state = document.getElementById("state").value;
       const membershipNumber = document.getElementById("membershipNumber").value;
       const password = document.getElementById("password").value;
+      const username = state + membershipNumber;
 
-      const username = `${state}${membershipNumber}`; // e.g. NSW-123456
+      const cognito = new AWS.CognitoIdentityServiceProvider();
 
-      const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
-        Username: username,
-        Password: password,
-      });
-
-      const userData = {
-        Username: username,
-        Pool: userPool
+      const params = {
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        ClientId: cognitoClientId,
+        AuthParameters: {
+          USERNAME: username,
+          PASSWORD: password
+        }
       };
 
-      const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
-      cognitoUser.authenticateUser(authenticationDetails, {
-        onSuccess: function(result) {
-          document.getElementById("message").innerText = "Login successful!";
-          console.log("Access Token: " + result.getAccessToken().getJwtToken());
-          // Redirect or store session as needed
-        },
-        onFailure: function(err) {
-          document.getElementById("message").innerText = "Login failed: " + err.message;
-        }
-      });
+      try {
+        const result = await cognito.initiateAuth(params).promise();
+        document.getElementById("message").style.color = "green";
+        document.getElementById("message").innerText = "Login successful!";
+        console.log("Access Token:", result.AuthenticationResult.AccessToken);
+        // You can redirect or save token to localStorage/sessionStorage if needed
+      } catch (err) {
+        document.getElementById("message").innerText = "Login failed: " + err.message;
+        console.error("Login error:", err);
+      }
     });
   </script>
 </body>
