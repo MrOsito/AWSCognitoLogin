@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multi Login Test</title>
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1487.0.min.js"></script>
+</head>
+<body>
+  <h1>Multi Login Test</h1>
+
+  <h2>JavaScript Login</h2>
+  <form id="jsLoginForm">
+    <input type="text" id="jsUsername" placeholder="Username">
+    <input type="password" id="jsPassword" placeholder="Password">
+    <button type="submit">Login (JS)</button>
+  </form>
+  <div id="jsResult"></div>
+
+  <h2>Flask Login</h2>
+  <form id="flaskLoginForm">
+    <input type="text" id="flaskUsername" placeholder="Username">
+    <input type="password" id="flaskPassword" placeholder="Password">
+    <button type="submit">Login (Flask)</button>
+  </form>
+  <div id="flaskResult"></div>
+
+  <h2>Hybrid Login (JS + Flask)</h2>
+  <form id="hybridLoginForm">
+    <input type="text" id="hybridUsername" placeholder="Username">
+    <input type="password" id="hybridPassword" placeholder="Password">
+    <button type="submit">Login (Hybrid)</button>
+  </form>
+  <div id="hybridResult"></div>
+
+  <script>
+    const region = "ap-southeast-2";
+    const clientId = "6v98tbc09aqfvh52fml3usas3c";
+    AWS.config.region = region;
+    const cognito = new AWS.CognitoIdentityServiceProvider();
+
+    async function jsLogin(e) {
+      e.preventDefault();
+      const start = performance.now();
+      const username = document.getElementById("jsUsername").value;
+      const password = document.getElementById("jsPassword").value;
+
+      try {
+        const response = await cognito.initiateAuth({
+          AuthFlow: "USER_PASSWORD_AUTH",
+          ClientId: clientId,
+          AuthParameters: {
+            USERNAME: username,
+            PASSWORD: password
+          }
+        }).promise();
+        const time = (performance.now() - start).toFixed(2);
+        document.getElementById("jsResult").innerHTML =
+          `<p><strong>Success (${time} ms)</strong><br><pre>${response.AuthenticationResult.IdToken}</pre></p>`;
+      } catch (err) {
+        document.getElementById("jsResult").innerText = `Error: ${err.message}`;
+      }
+    }
+
+    async function flaskLogin(e) {
+      e.preventDefault();
+      const start = performance.now();
+      const username = document.getElementById("flaskUsername").value;
+      const password = document.getElementById("flaskPassword").value;
+
+      const res = await fetch("/flask-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      const time = (performance.now() - start).toFixed(2);
+      document.getElementById("flaskResult").innerHTML =
+        res.ok ? `<p><strong>Success (${time} ms)</strong><br><pre>${data.id_token}</pre></p>` :
+                 `<p>Error: ${data.error}</p>`;
+    }
+
+    async function hybridLogin(e) {
+      e.preventDefault();
+      const start = performance.now();
+      const username = document.getElementById("hybridUsername").value;
+      const password = document.getElementById("hybridPassword").value;
+
+      try {
+        const auth = await cognito.initiateAuth({
+          AuthFlow: "USER_PASSWORD_AUTH",
+          ClientId: clientId,
+          AuthParameters: { USERNAME: username, PASSWORD: password }
+        }).promise();
+        const idToken = auth.AuthenticationResult.IdToken;
+
+        const res = await fetch("/validate-token", {
+          method: "POST",
+          headers: { Authorization: idToken }
+        });
+        const data = await res.json();
+        const time = (performance.now() - start).toFixed(2);
+        document.getElementById("hybridResult").innerHTML =
+          res.ok ? `<p><strong>Validated (${time} ms)</strong><br><pre>${JSON.stringify(data.claims, null, 2)}</pre></p>`
+                 : `<p>Error: ${data.error}</p>`;
+      } catch (err) {
+        document.getElementById("hybridResult").innerText = `Error: ${err.message}`;
+      }
+    }
+
+    document.getElementById("jsLoginForm").addEventListener("submit", jsLogin);
+    document.getElementById("flaskLoginForm").addEventListener("submit", flaskLogin);
+    document.getElementById("hybridLoginForm").addEventListener("submit", hybridLogin);
+  </script>
+</body>
+</html>
