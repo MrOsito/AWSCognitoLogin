@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.2.0/dist/amazon-cognito-identity.min.js"></script>
+</head>
+<body>
+  <h2>Login</h2>
+  <form id="loginForm">
+    <label for="state">Select your state:</label>
+    <select id="state" name="state" required>
+      <option value="NSW-">NSW</option>
+      <option value="VIC-">VIC</option>
+      <option value="QLD-">QLD</option>
+      <option value="SA-">SA</option>
+      <option value="WA-">WA</option>
+      <option value="TAS-">TAS</option>
+      <option value="ACT-">ACT</option>
+      <option value="NT-">NT</option>
+    </select><br><br>
+
+    <label for="membershipNumber">Membership Number:</label>
+    <input type="text" id="membershipNumber" name="membershipNumber" required><br><br>
+
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required><br><br>
+
+    <button type="submit">Login</button>
+  </form>
+
+  <div id="message"></div>
+
+  <script>
+    const poolData = {
+      UserPoolId: 'ap-southeast-2_XXXXXXX', // Replace with your Cognito User Pool ID
+      ClientId: 'XXXXXXXXXXXXXXXXXXXXXX'     // Replace with your App Client ID
+    };
+
+    const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+    document.getElementById("loginForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const state = document.getElementById("state").value;
+      const membershipNumber = document.getElementById("membershipNumber").value;
+      const password = document.getElementById("password").value;
+
+      const username = `${state}${membershipNumber}`; // e.g. NSW-123456
+
+      const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+        Username: username,
+        Password: password,
+      });
+
+      const userData = {
+        Username: username,
+        Pool: userPool
+      };
+
+      const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+      cognitoUser.authenticateUser(authenticationDetails, {
+        onSuccess: function(result) {
+          document.getElementById("message").innerText = "Login successful!";
+          console.log("Access Token: " + result.getAccessToken().getJwtToken());
+          // Redirect or store session as needed
+        },
+        onFailure: function(err) {
+          document.getElementById("message").innerText = "Login failed: " + err.message;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
