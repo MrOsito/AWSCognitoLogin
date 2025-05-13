@@ -3,3 +3,4 @@ gunicorn
 boto3
 flask_cors
 jwt
+requests
