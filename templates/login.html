@@ -2,71 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cognito Login</title>
+  <title>Cognito Dual Login</title>
   <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1487.0.min.js"></script>
   <style>
-    #dashboard {
-      display: none;
-      margin-top: 30px;
-    }
-    pre {
-      background: #f5f5f5;
-      padding: 10px;
-      overflow-x: auto;
-    }
+    body { font-family: sans-serif; }
+    .form-container { margin-bottom: 30px; border: 1px solid #ccc; padding: 20px; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    #results { margin-top: 30px; }
   </style>
 </head>
 <body>
-  <h2>Login</h2>
-  <form id="loginForm">
-    <label for="state">Select your state:</label>
-    <select id="state" name="state" required>
-      <option value="NSW-">NSW</option>
-      <option value="VIC-">VIC</option>
-      <option value="QLD-">QLD</option>
-      <option value="SA-">SA</option>
-      <option value="WA-">WA</option>
-      <option value="TAS-">TAS</option>
-      <option value="ACT-">ACT</option>
-      <option value="NT-">NT</option>
-    </select><br><br>
+  <h1>AWS Cognito Dual Login</h1>
 
-    <label for="membershipNumber">Membership Number:</label>
-    <input type="text" id="membershipNumber" name="membershipNumber" required><br><br>
+  <div class="form-container">
+    <h2>Login via JavaScript SDK (USER_PASSWORD_AUTH)</h2>
+    <form id="jsLoginForm">
+      <input type="text" id="jsUsername" placeholder="Username" required>
+      <input type="password" id="jsPassword" placeholder="Password" required>
+      <button type="submit">Login (JS)</button>
+    </form>
+  </div>
 
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required><br><br>
+  <div class="form-container">
+    <h2>Login via Flask + boto3</h2>
+    <form id="flaskLoginForm">
+      <input type="text" id="flaskUsername" placeholder="Username" required>
+      <input type="password" id="flaskPassword" placeholder="Password" required>
+      <button type="submit">Login (Flask)</button>
+    </form>
+  </div>
 
-    <button type="submit">Login</button>
-  </form>
-
-  <div id="message" style="margin-top: 20px; color: red;"></div>
-
-  <!-- Dashboard section -->
-  <div id="dashboard">
-    <h3>Welcome! You are logged in.</h3>
-    <p><strong>Your ID Token:</strong></p>
-    <pre id="idTokenDisplay"></pre>
+  <div id="results">
+    <h3>Results</h3>
+    <div id="jsResult"></div>
+    <div id="flaskResult"></div>
   </div>
 
   <script>
-    AWS.config.region = 'ap-southeast-2'; // Replace with your region
-    const cognitoClientId = 'YOUR_APP_CLIENT_ID'; // Replace with your App Client ID
-    const userPoolId = 'ap-southeast-2_XXXXXXX';  // Replace with your User Pool ID
+    const region = 'ap-southeast-2';
+    const clientId = '6v98tbc09aqfvh52fml3usas3c'; // Your App Client ID
 
-    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+    AWS.config.region = region;
+
+    document.getElementById("jsLoginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
-
-      const state = document.getElementById("state").value;
-      const membershipNumber = document.getElementById("membershipNumber").value;
-      const password = document.getElementById("password").value;
-      const username = state + membershipNumber;
+      const start = performance.now();
+      const username = document.getElementById("jsUsername").value;
+      const password = document.getElementById("jsPassword").value;
 
       const cognito = new AWS.CognitoIdentityServiceProvider();
-
       const params = {
         AuthFlow: 'USER_PASSWORD_AUTH',
-        ClientId: cognitoClientId,
+        ClientId: clientId,
         AuthParameters: {
           USERNAME: username,
           PASSWORD: password
@@ -74,24 +61,42 @@
       };
 
       try {
-        const result = await cognito.initiateAuth(params).promise();
-        const idToken = result.AuthenticationResult.IdToken;
-
-        // Hide login form
-        document.getElementById("loginForm").style.display = "none";
-        document.getElementById("message").style.color = "green";
-        document.getElementById("message").innerText = "Login successful!";
-
-        // Show dashboard
-        document.getElementById("dashboard").style.display = "block";
-        document.getElementById("idTokenDisplay").innerText = idToken;
-
-        // Optional: store the token in session/local storage
-        // localStorage.setItem("idToken", idToken);
+        const response = await cognito.initiateAuth(params).promise();
+        const duration = (performance.now() - start).toFixed(2);
+        document.getElementById("jsResult").innerHTML = `
+          <strong>JavaScript SDK Login Success (Time: ${duration} ms)</strong><br>
+          <pre>${response.AuthenticationResult.IdToken}</pre>`;
       } catch (err) {
-        document.getElementById("message").style.color = "red";
-        document.getElementById("message").innerText = "Login failed: " + err.message;
-        console.error("Login error:", err);
+        const duration = (performance.now() - start).toFixed(2);
+        document.getElementById("jsResult").innerHTML = `<strong>JS Login Failed (${duration} ms):</strong> ${err.message}`;
+      }
+    });
+
+    document.getElementById("flaskLoginForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const start = performance.now();
+      const username = document.getElementById("flaskUsername").value;
+      const password = document.getElementById("flaskPassword").value;
+
+      try {
+        const res = await fetch("/flask-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        const duration = (performance.now() - start).toFixed(2);
+
+        if (res.ok) {
+          document.getElementById("flaskResult").innerHTML = `
+            <strong>Flask Login Success (Time: ${duration} ms)</strong><br>
+            <pre>${data.id_token}</pre>`;
+        } else {
+          document.getElementById("flaskResult").innerHTML = `<strong>Flask Login Failed (${duration} ms):</strong> ${data.error}`;
+        }
+      } catch (err) {
+        const duration = (performance.now() - start).toFixed(2);
+        document.getElementById("flaskResult").innerHTML = `<strong>Flask Login Error (${duration} ms):</strong> ${err.message}`;
       }
     });
   </script>
