@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <title>Cognito Login</title>
   <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1487.0.min.js"></script>
+  <style>
+    #dashboard {
+      display: none;
+      margin-top: 30px;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      overflow-x: auto;
+    }
+  </style>
 </head>
 <body>
   <h2>Login</h2>
@@ -29,12 +40,19 @@
     <button type="submit">Login</button>
   </form>
 
-  <div id="message" style="margin-top:20px;color:red;"></div>
+  <div id="message" style="margin-top: 20px; color: red;"></div>
+
+  <!-- Dashboard section -->
+  <div id="dashboard">
+    <h3>Welcome! You are logged in.</h3>
+    <p><strong>Your ID Token:</strong></p>
+    <pre id="idTokenDisplay"></pre>
+  </div>
 
   <script>
-    AWS.config.region = 'ap-southeast-2'; // e.g. Sydney
-    const cognitoClientId = 'YOUR_APP_CLIENT_ID'; // Replace this
-    const userPoolId = 'ap-southeast-2_XXXXXXX'; // Replace this
+    AWS.config.region = 'ap-southeast-2'; // Replace with your region
+    const cognitoClientId = 'YOUR_APP_CLIENT_ID'; // Replace with your App Client ID
+    const userPoolId = 'ap-southeast-2_XXXXXXX';  // Replace with your User Pool ID
 
     document.getElementById("loginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
@@ -57,11 +75,21 @@
 
       try {
         const result = await cognito.initiateAuth(params).promise();
+        const idToken = result.AuthenticationResult.IdToken;
+
+        // Hide login form
+        document.getElementById("loginForm").style.display = "none";
         document.getElementById("message").style.color = "green";
         document.getElementById("message").innerText = "Login successful!";
-        console.log("Access Token:", result.AuthenticationResult.AccessToken);
-        // You can redirect or save token to localStorage/sessionStorage if needed
+
+        // Show dashboard
+        document.getElementById("dashboard").style.display = "block";
+        document.getElementById("idTokenDisplay").innerText = idToken;
+
+        // Optional: store the token in session/local storage
+        // localStorage.setItem("idToken", idToken);
       } catch (err) {
+        document.getElementById("message").style.color = "red";
         document.getElementById("message").innerText = "Login failed: " + err.message;
         console.error("Login error:", err);
       }
